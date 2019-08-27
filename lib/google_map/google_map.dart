@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MyGoogleMap extends StatefulWidget {
   @override
@@ -15,11 +14,18 @@ class MyGoogleMap extends StatefulWidget {
 }
 
 class MyGoogleMapState extends State<MyGoogleMap> {
-  final LatLng _center = const LatLng(45, -122);
   Completer<GoogleMapController> _controller = Completer();
-  GoogleMap map;
+  final LatLng _center = const LatLng(45, -122);
+  MapType _currentMapType = MapType.normal;
+  _changeMapType() {
+    setState(() {
+      _currentMapType = _currentMapType == MapType.normal
+          ? MapType.satellite
+          : MapType.normal;
+    });
+  }
 
-  _getPermission() async {
+  getPermission() async {
     Map<PermissionGroup, PermissionStatus> permissions =
         await PermissionHandler()
             .requestPermissions([PermissionGroup.location]);
@@ -27,22 +33,18 @@ class MyGoogleMapState extends State<MyGoogleMap> {
     PermissionStatus permission = await PermissionHandler()
         .checkPermissionStatus(PermissionGroup.location);
     print(permission);
-    ServiceStatus serviceStatus =
-        await PermissionHandler().checkServiceStatus(PermissionGroup.location);
-    print(serviceStatus);
-    
+    return permissions;
   }
 
-
-  _findMyLocation() {
-    setState(() {
-      _getPermission();
-      
-    });
+  Future<void> _getMyLocation() async {
+    Position position = await Geolocator()
+        .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    GoogleMapController controller = await _controller.future;
+    controller.animateCamera(CameraUpdate.newLatLngZoom(
+        LatLng(position.latitude, position.longitude), 14));
   }
 
-  
-  void _onMapCreated(GoogleMapController controller) {
+  void onMapCreated(GoogleMapController controller) {
     _controller.complete(controller);
   }
 
@@ -51,22 +53,29 @@ class MyGoogleMapState extends State<MyGoogleMap> {
     return Stack(
       children: <Widget>[
         GoogleMap(
-          onMapCreated: _onMapCreated,
+          onMapCreated: onMapCreated,
           initialCameraPosition: CameraPosition(target: _center, zoom: 11),
-          mapType: MapType.normal,
-          myLocationButtonEnabled: true,
+          mapType: _currentMapType,
+          myLocationButtonEnabled: false,
           myLocationEnabled: true,
           compassEnabled: true,
         ),
         Positioned(
           bottom: 5,
           right: 5,
-          child: FloatingActionButton.extended(
-            label: Text("My Location"),
-            icon: Icon(Icons.my_location),
-            onPressed: _findMyLocation,
+          child: FloatingActionButton(
+            child: Icon(Icons.map),
+            onPressed: _changeMapType,
           ),
-        )
+        ),
+        Positioned(
+          bottom: 5,
+          left: 5,
+          child: FloatingActionButton(
+            child: Icon(Icons.my_location),
+            onPressed: _getMyLocation,
+          ),
+        ),
       ],
     );
   }

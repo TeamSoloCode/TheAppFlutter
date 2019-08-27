@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:the_app/google_map.dart';
+import 'google_map/google_map.dart';
 
 void main() => runApp(MyApp());
 
